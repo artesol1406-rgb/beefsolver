@@ -5,9 +5,11 @@ import { textoAVector, calculateUnionPoint, N_DIM, DIMENSIONES } from './lib/ama
 import { getAmalgamAnalysis, AmalgamAnalysis } from './services/ai';
 
 type AppState = 'landing' | 'setup' | 'arguments' | 'deliberating' | 'verdict';
+type ResolutionMode = 'ai' | 'offline';
 
 export default function App() {
   const [state, setState] = useState<AppState>('landing');
+  const [mode, setMode] = useState<ResolutionMode>('ai');
   const [situation, setSituation] = useState('');
   const [partyA, setPartyA] = useState({ name: 'The Accused', argument: '', vector: new Array(N_DIM).fill(0) });
   const [partyB, setPartyB] = useState({ name: 'The Accuser', argument: '', vector: new Array(N_DIM).fill(0) });
@@ -15,7 +17,10 @@ export default function App() {
   const [unionInfo, setUnionInfo] = useState<any>(null);
   const [loadingStep, setLoadingStep] = useState(0);
 
-  const startSetup = () => setState('setup');
+  const startSetup = (m: ResolutionMode) => {
+    setMode(m);
+    setState('setup');
+  };
 
   const goToArguments = () => {
     if (situation.trim()) setState('arguments');
@@ -31,6 +36,23 @@ export default function App() {
 
     setUnionInfo(union);
 
+    if (mode === 'offline') {
+      // CLASSIC KERNEL RESOLUTION (OFFLINE)
+      const { vectorToPhrases } = await import('./lib/amalgam');
+      const phrases = vectorToPhrases(union.midpoint, situation);
+      
+      setAnalysis({
+        concreteLayer: phrases.concreta,
+        humanLayer: phrases.humana,
+        analogy: `The Union of ${phrases.amalgam}`,
+        lovePath: phrases.lovePath,
+        judgeVerdict: `The cosmic alignment suggests a distance of ${union.distance.toFixed(3)} rad. The path to resolution is open through symbolic integration.`
+      });
+      // Simulate small delay for effect
+      setTimeout(() => setState('verdict'), 1500);
+      return;
+    }
+
     try {
       const result = await getAmalgamAnalysis(
         situation,
@@ -41,8 +63,18 @@ export default function App() {
       setAnalysis(result);
       setState('verdict');
     } catch (err) {
-      alert("The cosmic connection was lost. Retrying... " + err);
-      setState('arguments');
+      alert("The cosmic connection was lost. Switching to offline wisdom...");
+      // Self-correction: if AI fails, fallback to offline
+      const { vectorToPhrases } = await import('./lib/amalgam');
+      const phrases = vectorToPhrases(union.midpoint, situation);
+      setAnalysis({
+        concreteLayer: phrases.concreta,
+        humanLayer: phrases.humana,
+        analogy: `The Union of ${phrases.amalgam}`,
+        lovePath: phrases.lovePath,
+        judgeVerdict: `Cosmic wisdom was interrupted, but the internal kernel remains firm. Resolve via structural cohesion.`
+      });
+      setState('verdict');
     }
   };
 
@@ -96,7 +128,7 @@ export default function App() {
   );
 }
 
-function Landing({ onStart }: { onStart: () => void }) {
+function Landing({ onStart }: { key?: string; onStart: (m: ResolutionMode) => void }) {
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -125,18 +157,29 @@ function Landing({ onStart }: { onStart: () => void }) {
         The Grand Mediator awaits your case.
       </p>
 
-      <button 
-        onClick={onStart}
-        className="group relative px-8 py-4 bg-white text-black font-bold uppercase transition-all hover:pr-12 active:scale-95"
-      >
-        Enter Courtroom
-        <ArrowRight className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all" />
-      </button>
+      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+        <button 
+          onClick={() => onStart('ai')}
+          className="flex-1 group relative px-6 py-4 bg-white text-black font-bold uppercase transition-all hover:bg-neutral-200 active:scale-95"
+        >
+          AI Courtroom
+          <div className="text-[8px] opacity-50 mt-1 font-mono tracking-widest">powered by gemini-3</div>
+        </button>
+        
+        <button 
+          onClick={() => onStart('offline')}
+          className="flex-1 group relative px-6 py-4 border-2 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-500 font-bold uppercase transition-all active:scale-95"
+        >
+          Offline Mode
+          <div className="text-[8px] opacity-50 mt-1 font-mono tracking-widest">v11 classic kernel</div>
+        </button>
+      </div>
     </motion.div>
   );
 }
 
 interface SetupProps {
+  key?: string;
   situation: string;
   setSituation: (s: string) => void;
   onNext: () => void;
@@ -199,6 +242,7 @@ function Setup({ situation, setSituation, onNext, partyAName, setPartyAName, par
 }
 
 interface ArgumentsProps {
+  key?: string;
   partyA: { name: string; argument: string };
   setPartyAArg: (a: string) => void;
   partyB: { name: string; argument: string };
@@ -287,6 +331,7 @@ function Deliberating() {
 }
 
 function Verdict({ analysis, unionInfo, onReset, partyA, partyB }: { 
+  key?: string;
   analysis: AmalgamAnalysis; 
   unionInfo: any; 
   onReset: () => void;
