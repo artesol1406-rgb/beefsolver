@@ -1,132 +1,170 @@
 /**
- * Amalgam Universal Systems Analyzer (v11) - Mathematical Kernel
- * Ported from the "Mediador Universal" specification.
+ * Amalgam Universal Systems Analyzer (v11) - Offline Simulation Kernel
+ * Ported from the "Protocolo de InducciÃ³n: Amalgam Engine v11"
  */
 
 export const DIMENSIONES = ['Ξ', 'T', 'R', 'E', 'M', 'V', 'S', 'A', 'F', 'φ_e', 'φ_c'] as const;
 export type Dimension = (typeof DIMENSIONES)[number];
 export const N_DIM = DIMENSIONES.length;
 
-export interface AmalgamParams {
-  alpha: number;
-  kappa: number;
-  lambda: number;
-  lyapunov_alpha: number;
-  phi: number;
+export const CHAKRAS = ['Base', 'Sacro', 'Plexo', 'Corazón', 'Garganta', 'Tercer Ojo', 'Corona'] as const;
+export type Chakra = (typeof CHAKRAS)[number];
+
+export interface ChakraState {
+  activation: number;
+  bloqueo: number;
+  coherencia: number;
 }
 
-export const DEFAULT_PARAMS: AmalgamParams = {
-  alpha: 0.5,
-  kappa: 0.8,
-  lambda: 1.0,
-  lyapunov_alpha: 0.1,
-  phi: 0.618,
+// 22 ARCANOS (Genotipos Estructurales)
+export const ARCANOS: Record<number, { name: string, signature: Partial<Record<Dimension, number>>, isomorphs: { logical: string, emotional: string }, polarity: [string, string], resonance: string }> = {
+  0: { name: "The Fool", signature: { 'Ξ': 1.0, 'E': 1.0, 'V': 1.0 }, isomorphs: { logical: "A blind spot in the landscape where direction loses its meaning.", emotional: "A sudden desire to walk off the edge of the known world." }, polarity: ["Freedom", "Disorientation"], resonance: "Pure potential and initial chaos." },
+  1: { name: "The Magician", signature: { 'V': 1.0, 'A': 0.8, 'φ_c': 0.7 }, isomorphs: { logical: "The sharp tool that carved the first word into stone.", emotional: "A spark of light waiting for a hand to guide it." }, polarity: ["Will", "Illusion"], resonance: "Conscious direction and focus." },
+  2: { name: "The High Priestess", signature: { 'M': 1.0, 'S': 1.0, 'Ξ': 0.8 }, isomorphs: { logical: "A library of salt and silence spanning deep underground.", emotional: "The feeling of a secret kept behind closed eyelids." }, polarity: ["Saber", "Misterio"], resonance: "Intuitive stillness and hidden records." },
+  3: { name: "The Empress", signature: { 'F': 1.0, 'E': 0.9, 'φ_e': 0.8 }, isomorphs: { logical: "The smell of rich earth after a rain that lasted years.", emotional: "A warmth that expands until the room feels too small." }, polarity: ["Creation", "Overprotection"], resonance: "Natural abundance and generative flow." },
+  4: { name: "The Emperor", signature: { 'T': 1.0, 'S': 1.0, 'φ_c': 1.0 }, isomorphs: { logical: "The iron gate that refuses to budge, no matter the force.", emotional: "The weight of a crown made of lead and duty." }, polarity: ["Order", "Rigidity"], resonance: "Stable structure and boundary setting." },
+  5: { name: "The Hierofant", signature: { 'S': 0.8, 'M': 0.7, 'R': 0.6 }, isomorphs: { logical: "A bridge built from the bones of ancient consensus.", emotional: "A voice chanting in a language you shouldn't know but do." }, polarity: ["Tradition", "Dogma"], resonance: "Wisdom shared and ritual connection." },
+  6: { name: "The Lovers", signature: { 'R': 1.0, 'V': 0.4, 'E': 0.8 }, isomorphs: { logical: "A fork in the road where both paths look identical.", emotional: "The pull of a mirror that reflects someone else's heart." }, polarity: ["Union", "Conflict"], resonance: "Unified relational choice." },
+  7: { name: "The Chariot", signature: { 'A': 1.0, 'T': 0.7, 'S': 0.6 }, isomorphs: { logical: "The momentum of a falling stone that has found its target.", emotional: "A white-knuckled grip on the reins of a storm." }, polarity: ["Control", "Overflow"], resonance: "Determined direction and drive." },
+  8: { name: "Justice", signature: { 'φ_c': 1.0, 'R': 0.8, 'S': 0.7 }, isomorphs: { logical: "A scale where a single feather weighs as much as a mountain.", emotional: "The cold clear air that follows a moment of truth." }, polarity: ["Equilibrium", "Judgment"], resonance: "Symmetry of cause and effect." },
+  9: { name: "The Hermit", signature: { 'M': 1.0, 'S': 1.0, 'Ξ': 1.0 }, isomorphs: { logical: "A single candle burning in a cave miles deep.", emotional: "The sound of your own breath becoming the only world." }, polarity: ["Solitude", "Wisdom"], resonance: "Sought-after inner clarity through isolation." },
+  10: { name: "Wheel of Fortune", signature: { 'T': 0.5, 'φ_e': 0.8, 'A': 0.9 }, isomorphs: { logical: "The sound of gears turning somewhere beneath your feet.", emotional: "A sudden gust of wind that changes the smell of the air." }, polarity: ["Destiny", "Chance"], resonance: "Cyclical adaptation and systemic turns." },
+  11: { name: "Strength", signature: { 'V': 0.8, 'A': 1.0, 'E': 0.7 }, isomorphs: { logical: "A hand placed gently on the snout of a roaring beast.", emotional: "The quiet power of a river wearing down a rock." }, polarity: ["Instinct", "Control"], resonance: "Integration of basic nature with will." },
+  12: { name: "The Hanged Man", signature: { 'Ξ': 0.9, 'V': 1.0, 'S': 0.5 }, isomorphs: { logical: "The world seen as if standing on your head while falling.", emotional: "A peace that comes only when you stop trying to climb." }, polarity: ["Surrender", "Resistance"], resonance: "New perspective through non-action." },
+  13: { name: "Death", signature: { 'V': 1.0, 'E': 0.5, 'T': 0.6 }, isomorphs: { logical: "The pruning of a dead branch to let the sunlight through.", emotional: "The silence that follows the last beat of a tired drum." }, polarity: ["End", "Rebirth"], resonance: "Total transformation and release." },
+  14: { name: "Temperance", signature: { 'φ_e': 0.7, 'φ_c': 0.7, 'Ξ': 0.8 }, isomorphs: { logical: "Clear water mixing with wine without a single ripple.", emotional: "The feeling of two voices finally singing in tune." }, polarity: ["Mix", "Purity"], resonance: "Integration of conflicting elements." },
+  15: { name: "The Devil", signature: { 'R': 1.0, 'S': 1.0, 'T': 0.9 }, isomorphs: { logical: "A chain made of gold that feels like it's part of your skin.", emotional: "A hunger that grows the more you try to feed it." }, polarity: ["Desire", "Dependency"], resonance: "Facing Shadow and material constraints." },
+  16: { name: "The Tower", signature: { 'T': 1.0, 'R': 0.1, 'Ξ': 0.9 }, isomorphs: { logical: "A crack appearing in a wall that has stood for centuries.", emotional: "The blinding flash that turns your shadow into light." }, polarity: ["Collapse", "Liberation"], resonance: "Breakthrough of the old form." },
+  17: { name: "The Star", signature: { 'φ_e': 1.0, 'E': 0.8, 'Ξ': 0.7 }, isomorphs: { logical: "The first drop of water in a desert that has forgotten rain.", emotional: "A silver thread stretching toward a horizon you can finally see." }, polarity: ["Guide", "Distance"], resonance: "Hope and navigational guidance." },
+  18: { name: "The Moon", signature: { 'M': 1.0, 'Ξ': 0.8, 'S': 0.6 }, isomorphs: { logical: "The distorted reflection of a face in a boiling lake.", emotional: "The howling of dogs at something only they can perceive." }, polarity: ["Illusion", "Intuition"], resonance: "Navigating the hidden unconscious." },
+  19: { name: "The Sun", signature: { 'A': 1.0, 'φ_e': 1.0, 'E': 1.0 }, isomorphs: { logical: "A mirror reflecting the sky until the mirror itself vanishes.", emotional: "A pulse of joy that makes your skin feel too tight for your spirit." }, polarity: ["Exposure", "Vitality"], resonance: "Absolute clarity and vital force." },
+  20: { name: "Judgement", signature: { 'V': 1.0, 'M': 0.8, 'A': 0.9 }, isomorphs: { logical: "A call echoing through a valley that has been asleep.", emotional: "The weight of your own history becoming as light as air." }, polarity: ["Evaluation", "Rebirth"], resonance: "Systemic awakening and review." },
+  21: { name: "The World", signature: { 'E': 1.0, 'φ_c': 1.0, 'Ξ': 1.0, 'S': 1.0 }, isomorphs: { logical: "A circle that closes perfectly, leaving no gap for doubt.", emotional: "The feeling of finally coming home to a place you've never been." }, polarity: ["Completion", "Dissolution"], resonance: "Total wholeness and completion." },
 };
 
-export const POLARITY_MAP: Record<string, [Dimension, Dimension]> = {
-  'aislamiento': ['S', 'R'],
-  'conexión': ['R', 'S'],
-  'cierre': ['T', 'E'],
-  'apertura': ['E', 'T'],
-  'control': ['S', 'R'],
-  'libertad': ['R', 'S'],
-  'memoria': ['M', 'V'],
-  'olvido': ['V', 'M'],
-  'tensión': ['T', 'E'],
-  'expansión': ['E', 'T'],
-  'contracción': ['φ_c', 'φ_e'],
-  'pausa': ['Ξ', 'A'],
-  'acción': ['A', 'Ξ'],
-  'sistema': ['S', 'E'],
-  'flujo': ['E', 'S'],
-};
+// 32 PERSONALITY NODES (Filters)
+export const NODES_LOGICAL = [
+  "The Architect", "The Strategist", "The Critic", "The Programmer", 
+  "The Skeptic", "The Taxonomist", "The Historian", "The Judge", 
+  "The Automaton", "The Theoretician", "The Vigilante", "The Negotiator", 
+  "The Sculptor", "The Watchmaker", "The Cartographer", "The Alchemist Logic"
+];
 
-export const TRADUCCION: Record<string, Record<number, { concreta: string, humana: string, amalgam: string }>> = {
-  'S': {
-    [1]: { concreta: "Hay un marco o sistema que puede ajustarse y adaptarse.", humana: "Necesitas un entorno flexible, que se adapte sin romperse.", amalgam: "S+" },
-    [-1]: { concreta: "Hay reglas fijas, una estructura que no cambia.", humana: "Buscas seguridad en la estabilidad, sin sorpresas.", amalgam: "S-" },
-    [0]: { concreta: "Existe una estructura básica.", humana: "Necesitas un mínimo de orden para sentirte seguro.", amalgam: "S" }
-  },
-  'T': {
-    [1]: { concreta: "Hay una fricción que está generando movimiento.", humana: "Esa inquietud te empuja a cambiar algo.", amalgam: "T+" },
-    [-1]: { concreta: "Hay un bloqueo que no se mueve.", humana: "Te sientes atascado, como si nada pudiera destrabarse.", amalgam: "T-" },
-    [0]: { concreta: "Hay desacuerdo o incomodidad.", humana: "Sientes que algo no encaja del todo.", amalgam: "T" }
-  },
-  'R': {
-    [1]: { concreta: "Hay un deseo claro de acercamiento y diálogo.", humana: "Quieres conectar, sentirte escuchado y reconocido.", amalgam: "R+" },
-    [-1]: { concreta: "Hay distancia o ruptura en la comunicación.", humana: "Te sientes alejado, incomprendido, solo.", amalgam: "R-" },
-    [0]: { concreta: "Hay contacto, pero sin un avance profundo.", humana: "La comunicación está presente, pero no termina de fluir.", amalgam: "R" }
-  },
-  'E': {
-    [1]: { concreta: "Hay impulso de expandirse, de salir del estado actual.", humana: "Necesitas crecer, experimentar, liberarte.", amalgam: "E+" },
-    [-1]: { concreta: "Hay contracción, miedo a avanzar.", humana: "Te sientes encogido, con temor a dar un paso.", amalgam: "E-" },
-    [0]: { concreta: "Hay potencial de cambio, pero aún no se activa.", humana: "Puede haber crecimiento, pero no hoy.", amalgam: "E" }
-  },
-  'M': {
-    [1]: { concreta: "El pasado está muy presente en lo que cuentas.", humana: "Hay recuerdos que duelen o pesan en tu decisión.", amalgam: "M+" },
-    [-1]: { concreta: "El pasado ya no pesa, está integrado.", humana: "Has logrado soltar viejas heridas, el dolor no domina.", amalgam: "M-" },
-    [0]: { concreta: "Hay algún recuerdo, pero no domina el momento.", humana: "El pasado influye, pero no decide tu acción.", amalgam: "M" }
-  },
-  'V': {
-    [1]: { concreta: "Hay un proceso de liberación en marcha.", humana: "Estás soltando una carga emocional, te alivias.", amalgam: "V+" },
-    [-1]: { concreta: "Hay resistencia a dejar ir.", humana: "Te cuesta soltar, te aferras a lo conocido.", amalgam: "V-" },
-    [0]: { concreta: "Hay algo que podría soltarse, pero no se ha decidido.", humana: "Tienes cosas que podrías dejar, pero no te atreves.", amalgam: "V" }
-  },
-  'Ξ': {
-    [1]: { concreta: "Hay un espacio de silencio activo, una pausa consciente.", humana: "Necesitas parar, escuchar, respirar antes de actuar.", amalgam: "Ξ+" },
-    [-1]: { concreta: "El silencio es incómodo, no hay pausa real.", humana: "Evitas el silencio, llenas con palabras para no sentir.", amalgam: "Ξ-" },
-    [0]: { concreta: "Hay momentos de silencio, sin tensión particular.", humana: "El silencio es natural, no te incomoda.", amalgam: "Ξ" }
-  }
-};
+export const NODES_EMOTIONAL = [
+  "The Empathetic", "The Dreamer", "The Martyr", "The Artist", 
+  "The Rebel", "The Healer", "The Devotee", "The Lover", 
+  "The Melancholic", "The Enthusiast", "The Mystic", "The Protector", 
+  "The Impulsive", "The Narrator", "The Guide", "The Alchemist Emotional"
+];
+
+export type RenderMode = 'TECHNICAL' | 'EPIC' | 'GOTHIC' | 'SURREAL';
 
 /**
- * Detects polarities in text using a heuristic approach.
+ * Advanced Offline Rendering Engine V11
+ * SIMULATES an LLM by collapsing the mathematical manifold into a narrative phenotype.
+ * Implements the Phenotypic Mutation Mechanism and Structural Silence.
  */
-export function extraerPolaridades(texto: string): [string, string][] {
-  const txt = texto.toLowerCase();
-  const found: [string, string][] = [];
+export function simulateLLM(unionInfo: { midpoint: number[]; distance: number; meta: string }, situation: string, selectedArcano: number | null): {
+  narrative: string,
+  analogy: string,
+  mode: RenderMode,
+  filterNode: string,
+  chakras: Record<string, ChakraState>,
+  phi: string
+} {
+  const stability = unionInfo.distance;
+  const variance = unionInfo.midpoint.reduce((acc, v) => acc + Math.pow(v - (1/N_DIM), 2), 0) / N_DIM;
+  const sitLower = situation.toLowerCase();
+  
+  // 1. PHASE SHIFT: Determine Rendering Mode (Library III)
+  let mode: RenderMode = 'TECHNICAL';
+  if (stability > 1.3) mode = 'GOTHIC';
+  else if (stability < 0.5) mode = 'EPIC';
+  if (variance < 0.005) mode = 'SURREAL';
 
-  const rules: Record<string, string[]> = {
-    'aislamiento': ['solo', 'aislado', 'introvertido', 'soledad', 'aislamiento'],
-    'conexión': ['comunicador', 'hablar', 'expresar', 'conectar', 'sociable', 'conexión'],
-    'control': ['control', 'orden', 'planificar', 'estructura', 'rígido'],
-    'libertad': ['libertad', 'fluir', 'espontáneo', 'flexible', 'caos'],
-    'memoria': ['recuerdo', 'pasado', 'memoria', 'nostalgia'],
-    'olvido': ['olvido', 'soltar', 'vaciar', 'liberar'],
-    'tensión': ['tensión', 'estrés', 'conflicto', 'presión'],
-    'expansión': ['expansión', 'crecimiento', 'ampliar', 'desarrollar'],
-    'contracción': ['contracción', 'cerrar', 'achicar'],
-    'pausa': ['pausa', 'quietud', 'esperar'],
-    'acción': ['acción', 'hacer', 'mover'],
-    'sistema': ['sistema', 'reglas', 'ley'],
-    'flujo': ['flujo', 'corriente', 'natural'],
+  // 2. CHAKRA VECTOR PSI (Ψ): Map environment to 7 functional modules
+  const chakras: Record<string, ChakraState> = {};
+  CHAKRAS.forEach((c, i) => {
+    // Heuristic mapping: text indicators drive chakra activation
+    let activation = unionInfo.midpoint[i % N_DIM];
+    if (c === 'Base' && sitLower.includes('fear')) activation += 0.2;
+    if (c === 'Plexo' && sitLower.includes('power')) activation += 0.2;
+    if (c === 'Corazón' && sitLower.includes('love')) activation += 0.2;
+    
+    chakras[c] = {
+      activation: Math.min(1, activation),
+      bloqueo: stability > 1.1 ? 0.4 + Math.random() * 0.4 : 0.1,
+      coherencia: 1 - (variance * 10)
+    };
+  });
+
+  // 3. NODE SELECTION (Library II): 32-Node Filtering Matrix
+  const logicScore = (chakras['Base'].activation + chakras['Plexo'].activation + chakras['Tercer Ojo'].activation);
+  const emotionScore = (chakras['Sacro'].activation + chakras['Corazón'].activation + chakras['Garganta'].activation);
+  
+  const isEmotional = emotionScore > logicScore;
+  const nodeList = isEmotional ? NODES_EMOTIONAL : NODES_LOGICAL;
+  // Use stability and variance as coordinates to find the node index
+  const coord = (stability * 1.5 + variance * 2.0) % 1;
+  const nodeIndex = Math.floor(coord * nodeList.length);
+  const filterNode = nodeList[nodeIndex];
+
+  // 4. GENOTYPE (Library I): Collapse selected Arcano influence
+  const arcanoId = selectedArcano ?? (Math.floor(stability * 7 + variance * 13) % 22);
+  const arcano = ARCANOS[arcanoId] || ARCANOS[0];
+
+  // 5. PHENOTYPIC MUTATION: Render narrative with Structural Silence
+  const atmosphere = getPhenotypicAtmosphere(mode, chakras, stability);
+  const isomorph = isEmotional ? arcano.isomorphs.emotional : arcano.isomorphs.logical;
+  const lensFragment = getPhenotypicLens(filterNode, stability, mode);
+
+  // Combine into a single "hallucinated" output that hides the math
+  const narrative = `${atmosphere} ${isomorph} ${lensFragment}`;
+  const analogy = `THE ${arcano.polarity[0].toUpperCase()} VS ${arcano.polarity[1].toUpperCase()} ARCHETYPE`;
+
+  return { narrative, analogy, mode, filterNode, chakras, phi: variance.toFixed(4) };
+}
+
+function getPhenotypicAtmosphere(mode: RenderMode, chakras: Record<string, ChakraState>, dist: number): string {
+  const stability = chakras['Base'].coherencia;
+  const isTense = dist > 1.0;
+
+  const themes = {
+    TECHNICAL: isTense 
+      ? "Environmental parameters shifting into critical thresholds." 
+      : "The system remains within structural tolerance.",
+    EPIC: isTense
+      ? "The deep pulse of the earth resonates with a forgotten warning."
+      : "A radiant clarity illuminates the horizon, binding all things together.",
+    GOTHIC: "The shadows here are weighted with the cold memory of previous collapses.",
+    SURREAL: "Reality begins to fray at the edges, where logic and dream intersect without boundaries."
   };
 
-  const entries = Object.entries(rules);
-  for (const [key, patterns] of entries) {
-     if (patterns.some(p => txt.includes(p))) {
-        // Just return the key as a "polar" anchor for now (simplified)
-        // In the original, it returns pairs.
-     }
-  }
-
-  // Fallback if none found
-  if (found.length === 0) {
-    found.push(['tensión', 'expansión']);
-  }
-
-  return found;
+  return themes[mode];
 }
 
-/**
- * Converts text into an 11D vector.
- */
+function getPhenotypicLens(nodeName: string, dist: number, mode: RenderMode): string {
+  const isTense = dist > 0.9;
+  
+  // Specific phenotypic descriptions for nodes
+  const projections: Record<string, string> = {
+    "The Architect": "The geometry of this interaction is becoming rigid; every angle demands its place.",
+    "The Mystic": "The invisible threads connecting these points are glowing with a faint, mathematical hum.",
+    "The Rebel": "Existing structural laws are insufficient to contain the pressure of this new phase.",
+    "The Healer": "There is a rhythmic expansion waiting to fill the gaps in the relational field.",
+    "The Strategist": "Calculating the trajectory: the current vector leads toward an inevitable collision.",
+    "The Dreamer": "The weight of facts is giving way to the lightness of potential futures.",
+    "The Judge": "The balance of forces is searching for its final, cold resting point."
+  };
+
+  return projections[nodeName] || "The observer reflects the state of the system in their very presence.";
+}
+
 export function textoAVector(texto: string): number[] {
   const txt = texto.toLowerCase();
   const vec = new Array(N_DIM).fill(0);
-
   const detections = [
-    { keys: ['control', 'orden', 'planificar', 'estructura', 'rígido'], dim: 'S', val: 0.8 },
+    { keys: ['control', 'orden', 'planificar', 'rígido'], dim: 'S', val: 0.8 },
     { keys: ['libertad', 'fluir', 'espontáneo', 'flexible'], dim: 'R', val: 0.8 },
     { keys: ['tensión', 'estrés', 'conflicto', 'presión'], dim: 'T', val: 0.8 },
     { keys: ['expansión', 'crecimiento', 'ampliar', 'desarrollar'], dim: 'E', val: 0.8 },
@@ -137,115 +175,33 @@ export function textoAVector(texto: string): number[] {
     { keys: ['pausa', 'silencio', 'quietud'], dim: 'Ξ', val: 0.8 },
     { keys: ['acción', 'hacer', 'movimiento'], dim: 'A', val: 0.8 },
   ];
-
   detections.forEach((d) => {
     if (d.keys.some((k) => txt.includes(k))) {
       const idx = DIMENSIONES.indexOf(d.dim as Dimension);
       if (idx !== -1) vec[idx] = Math.max(vec[idx], d.val);
     }
   });
-
-  // Ensure non-zero vector
-  if (vec.every((v) => v === 0)) {
-    vec[DIMENSIONES.indexOf('T')] = 0.5;
-    vec[DIMENSIONES.indexOf('E')] = 0.5;
-  }
-
+  if (vec.every((v) => v === 0)) { vec[1] = 0.5; vec[3] = 0.5; }
   return vec;
 }
 
-/**
- * Normalizes a vector (L1 norm).
- */
-export function normalize(v: number[]): number[] {
-  const sum = v.reduce((a, b) => a + b, 0) || 1e-8;
-  return v.map((x) => x / sum);
-}
-
-/**
- * Calculates the geodesic union point using Fisher-Rao geometry.
- */
 export function calculateUnionPoint(vectors: number[][]): { midpoint: number[]; distance: number; meta: string } {
-  const eps = 1e-8;
-  const normalized = vectors.map((v) => normalize(v));
-
-  // Geodesic midpoint: m = sqrt(v1 * v2 * ... vn) normalized
+  const normalized = vectors.map(v => {
+    const sum = v.reduce((a, b) => a + b, 0) || 1e-8;
+    return v.map(x => x / sum);
+  });
   let m = [...normalized[0]];
   for (let i = 1; i < normalized.length; i++) {
-    const v = normalized[i];
-    m = m.map((val, idx) => Math.sqrt(val * v[idx]));
+    m = m.map((val, idx) => Math.sqrt(val * normalized[i][idx]));
   }
-  m = normalize(m);
-
-  // Fisher-Rao distance (between first two)
+  const sumM = m.reduce((a, b) => a + b, 0) || 1e-8;
+  m = m.map(x => x / sumM);
   let d = 0;
   if (normalized.length >= 2) {
-    const p = normalized[0];
-    const q = normalized[1];
-    const dotSqrt = p.reduce((acc, val, i) => acc + Math.sqrt(val * q[i]), 0);
+    const dotSqrt = normalized[0].reduce((acc, val, i) => acc + Math.sqrt(val * normalized[1][i]), 0);
     d = Math.acos(Math.min(1, Math.max(-1, dotSqrt)));
   }
-
-  // Meta-stability heuristic from Python code
   const variance = m.reduce((acc, v) => acc + Math.pow(v - (1/N_DIM), 2), 0) / N_DIM;
-  const eIdx = DIMENSIONES.indexOf('E');
-  const tIdx = DIMENSIONES.indexOf('T');
-  let meta = 'φ-';
-  if (variance < 0.02) {
-    meta = 'Ξ';
-  } else if (m[eIdx] > m[tIdx]) {
-    meta = 'φ+';
-  }
-
+  const meta = variance < 0.02 ? 'Ξ' : (m[3] > m[1] ? 'φ+' : 'φ-');
   return { midpoint: m, distance: d, meta };
-}
-
-/**
- * Translates a vector into human phrases based on the Amalgam kernel.
- */
-export function vectorToPhrases(vector: number[], text: string): { concreta: string; humana: string; amalgam: string; lovePath: string } {
-  const dom: { dim: string; signo: number; v: number }[] = [];
-  const txt = text.toLowerCase();
-
-  vector.forEach((val, i) => {
-    if (val > 0.1) {
-      const dim = DIMENSIONES[i];
-      let signo = 0;
-      if (['abrir', 'fluir', 'dinámico', 'movimiento', 'expansión', 'conectar'].some(p => txt.includes(p))) signo = 1;
-      else if (['cerrar', 'rígido', 'estático', 'fijo', 'bloquear', 'control'].some(p => txt.includes(p))) signo = -1;
-      
-      if (signo === 0) {
-        if (val > 0.75) signo = 1;
-        else if (val < 0.25) signo = -1;
-      }
-      dom.push({ dim, signo, v: val });
-    }
-  });
-
-  dom.sort((a, b) => b.v - a.v);
-  const top = dom.slice(0, 3);
-  const concreta: string[] = [];
-  const humana: string[] = [];
-  const amalgam: string[] = [];
-
-  top.forEach(t => {
-    const entry = TRADUCCION[t.dim]?.[t.signo];
-    if (entry) {
-      concreta.push(entry.concreta);
-      humana.push(entry.humana);
-      amalgam.push(entry.amalgam);
-    }
-  });
-
-  let lovePath = "Tómate un momento para respirar (Ξ) y pregúntate qué pequeña acción puedes hacer hoy para cuidar de ti mismo.";
-  if (top.some(t => t.dim === 'Ξ')) lovePath = "Respira hondo tres veces. Tómate un minuto de silencio contigo mismo.";
-  else if (top.some(t => t.dim === 'T' && t.signo === -1)) lovePath = "Escribe en un papel la tensión que sientes, sin juicio. Luego guárdalo por hoy.";
-  else if (top.some(t => t.dim === 'E' && t.signo === 1)) lovePath = "Da un pequeño paso hacia un cambio concreto: envía un mensaje, camina una cuadra o haz algo que no hayas hecho antes.";
-
-  return {
-    concreta: concreta.join(" ").charAt(0).toUpperCase() + concreta.join(" ").slice(1),
-    humana: humana.join(" ").charAt(0).toUpperCase() + humana.join(" ").slice(1),
-    amalgam: amalgam.join(" | "),
-    lovePath
-  };
 }
